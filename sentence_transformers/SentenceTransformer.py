@@ -101,7 +101,12 @@ class SentenceTransformer(nn.Sequential):
 
         super().__init__(modules)
         if device is None:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            if torch.backends.mps.is_available():
+                device = "mps"
+            elif torch.cuda.is_available():
+                device = "cuda"
+            else:
+                device = "cpu"
             logger.info("Use pytorch device: {}".format(device))
 
         self._target_device = torch.device(device)
@@ -213,10 +218,13 @@ class SentenceTransformer(nn.Sequential):
         :return: Returns a dict with the target processes, an input queue and and output queue.
         """
         if target_devices is None:
-            if torch.cuda.is_available():
+            if torch.backends.mps.is_available():
+                # MPS doesn't support multi-device like CUDA, use single MPS device
+                target_devices = ['mps']
+            elif torch.cuda.is_available():
                 target_devices = ['cuda:{}'.format(i) for i in range(torch.cuda.device_count())]
             else:
-                logger.info("CUDA is not available. Start 4 CPU worker")
+                logger.info("GPU is not available. Start 4 CPU worker")
                 target_devices = ['cpu']*4
 
         logger.info("Start multi-process pool on devices: {}".format(', '.join(map(str, target_devices))))
@@ -635,8 +643,10 @@ class SentenceTransformer(nn.Sequential):
 
 
         if use_amp:
-            from torch.cuda.amp import autocast
-            scaler = torch.cuda.amp.GradScaler()
+            from torch.amp import autocast
+            # Use device-agnostic GradScaler for MPS/CUDA/CPU
+            device_type = str(self._target_device).split(':')[0]
+            scaler = torch.amp.GradScaler(device_type)
 
         self.to(self._target_device)
 

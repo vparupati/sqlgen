@@ -52,7 +52,12 @@ class CrossEncoder():
         self.max_length = max_length
 
         if device is None:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            if torch.backends.mps.is_available():
+                device = "mps"
+            elif torch.cuda.is_available():
+                device = "cuda"
+            else:
+                device = "cpu"
             logger.info("Use pytorch device: {}".format(device))
 
         self._target_device = torch.device(device)
@@ -148,8 +153,10 @@ class CrossEncoder():
         train_dataloader.collate_fn = self.smart_batching_collate
 
         if use_amp:
-            from torch.cuda.amp import autocast
-            scaler = torch.cuda.amp.GradScaler()
+            from torch.amp import autocast
+            # Use device-agnostic GradScaler for MPS/CUDA/CPU
+            device_type = str(self._target_device).split(':')[0]
+            scaler = torch.amp.GradScaler(device_type)
 
         self.model.to(self._target_device)
 

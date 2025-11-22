@@ -5,8 +5,8 @@
 ## Prerequisite
 
 ### Environment
-- Python 3.10
-- CUDA 12.1
+- Python 3.13
+- MPS (Apple Silicon GPU) or CPU
 
 *Refer to [requirements.txt](requirements.txt) for required Python packages.*
 
@@ -52,11 +52,29 @@ Put the retriever model in [pretrained](pretrained).
 
 ## Running Experiments
 
-- Start openai-compatible vllm server:
+- Start a local LLM server with OpenAI-compatible API:
+  
+  **Option 1: Using Ollama (Recommended for Mac)**
   ```shell
-  python -m vllm.entrypoints.openai.api_server --model [YOUR MODEL]
+  # Install: https://ollama.ai
+  ollama serve
+  # The server runs on http://localhost:11434 by default
   ```
-  Here is the [link](https://docs.vllm.ai/en/latest/getting_started/quickstart.html#openai-compatible-server) for quick reference.
+  
+  **Option 2: Using LM Studio**
+  ```shell
+  # Download from: https://lmstudio.ai
+  # Start the local server from the UI (default port 1234)
+  ```
+  
+  **Option 3: Using llama-cpp-python**
+  ```shell
+  # Install: pip install llama-cpp-python[server]
+  python -m llama_cpp.server --model path/to/model.gguf
+  ```
+  
+  **Note**: Update `LLMClient` initialization in `main.py` with your server's host and port if different from defaults.
+
 - Run code:
   ```shell
   python main.py
