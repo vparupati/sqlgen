@@ -673,10 +673,10 @@ class Retriever:
 
 def generate_sql_zero_shot_chat(client: LLMClient, question: str, schemas: List[Tuple[str, str, str, float]]=None, **generation_configs):
     if schemas is None:
-        prompt = f"Write a SQL query to answer the question.\nQuestion: {question}"
+        prompt = f"Write a SQL query to answer the question. Output ONLY the SQL query without any explanations or text.\nQuestion: {question}"
     else:
         concat_schemas = '\n'.join([schema for _, _, schema, _ in schemas])
-        prompt = f"Write a SQL query to answer the question.\nDatabase Schema:\n{concat_schemas}\n\nQuestion: {question}"
+        prompt = f"Write a SQL query to answer the question. Output ONLY the SQL query without any explanations or text.\nDatabase Schema:\n{concat_schemas}\n\nQuestion: {question}"
     # print(prompt)
     # exit()
     res, usage = client.chat(
@@ -690,7 +690,7 @@ def generate_sql_zero_shot_chat(client: LLMClient, question: str, schemas: List[
 
 
 def generate_sql_few_shot_completion(client: LLMClient, examples: List[Tuple[dict, float]], question: str, schemas: List[Tuple[str, str, str, float]]=None, strict: Optional[bool]=None, failed_sql: Optional[str]=None, failed_sql_error_message: Optional[str]=None, **generation_configs):
-    prompt = "Instruction: Write a sqlite3 SQL query to answer the question."
+    prompt = "Instruction: Write a sqlite3 SQL query to answer the question. Output ONLY the SQL query without any explanations, narratives, or additional text. Do not include phrases like 'To answer your question' or 'Here is the query'. Only output valid SQL code."
     if strict is not None:
         if strict:
             assert schemas is not None
@@ -711,7 +711,7 @@ def generate_sql_few_shot_completion(client: LLMClient, examples: List[Tuple[dic
     if failed_sql is not None:
         assert failed_sql_error_message is not None
         prompt += f"\nYou may answer the question by fixing the SQL that failed to execute: {failed_sql}\nError Message: {failed_sql_error_message}\n\n"
-    prompt += f"Question: {question}\nSQL: SELECT "
+    prompt += f"Question: {question}\nSQL: "
     # print(prompt)
     # exit()
     stop = ['Question', 'Instruction', '\n\n']
@@ -723,7 +723,7 @@ def generate_sql_few_shot_completion(client: LLMClient, examples: List[Tuple[dic
         prompt=prompt,
         **generation_configs,
     )
-    return ['SELECT ' + s for s in res], usage
+    return res, usage
 
 
 def prepare_sql_generation(client: LLMClient, retriever: Retriever, mode: str, question: str):
