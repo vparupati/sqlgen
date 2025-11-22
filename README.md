@@ -52,34 +52,68 @@ Put the retriever model in [pretrained](pretrained).
 
 ## Running Experiments
 
-- Start a local LLM server with OpenAI-compatible API:
-  
-  **Option 1: Using Ollama (Recommended for Mac)**
-  ```shell
-  # Install: https://ollama.ai
-  ollama serve
-  # The server runs on http://localhost:11434 by default
-  ```
-  
-  **Option 2: Using LM Studio**
-  ```shell
-  # Download from: https://lmstudio.ai
-  # Start the local server from the UI (default port 1234)
-  ```
-  
-  **Option 3: Using llama-cpp-python**
-  ```shell
-  # Install: pip install llama-cpp-python[server]
-  python -m llama_cpp.server --model path/to/model.gguf
-  ```
-  
-  **Note**: Update `LLMClient` initialization in `main.py` with your server's host and port if different from defaults.
+### LLM Server Configuration
 
-- Run code:
-  ```shell
-  python main.py
-  ```
-  The results will be saved to [output](output).
+The application connects to a local LLM server via OpenAI-compatible API. Configure using environment variables:
+
+```bash
+# Default configuration (Ollama)
+export LLM_HOST=localhost
+export LLM_PORT=11434
+export LLM_MODEL=llama2  # Optional: specify model name
+
+# Run the application
+python main.py
+```
+
+Or copy and modify the example config:
+```bash
+cp config_example.env .env
+# Edit .env with your settings
+source .env
+python main.py
+```
+
+### Server Setup Options
+
+**Option 1: Ollama (Recommended for Mac)**
+```shell
+# Install from https://ollama.ai
+ollama serve
+
+# Pull a model
+ollama pull llama2
+
+# The server runs on http://localhost:11434 by default
+# No additional configuration needed!
+```
+
+**Option 2: LM Studio**
+```shell
+# Download from https://lmstudio.ai
+# 1. Start the local server from the UI
+# 2. Default port is 1234
+# Configure: export LLM_PORT=1234
+```
+
+**Option 3: llama-cpp-python**
+```shell
+# Install
+pip install llama-cpp-python[server]
+
+# Run server
+python -m llama_cpp.server --model path/to/model.gguf
+
+# Configure: export LLM_PORT=8080
+```
+
+### Running the Application
+
+```shell
+python main.py
+```
+
+The results will be saved to `output/`.
 - Execution accuracy:
   - Convert output:
     

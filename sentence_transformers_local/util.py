@@ -14,7 +14,7 @@ from pathlib import Path
 
 import huggingface_hub
 from huggingface_hub.constants import HUGGINGFACE_HUB_CACHE
-from huggingface_hub import HfApi, hf_hub_url, cached_download, HfFolder
+from huggingface_hub import HfApi, hf_hub_url, hf_hub_download, HfFolder
 import fnmatch
 from packaging import version
 import heapq

@@ -343,17 +343,128 @@ def get_query_sql(sql: str):
 
 
 class LLMClient:
+    """
+    Client for connecting to OpenAI-compatible LLM servers.
+    Supports Ollama, LM Studio, llama-cpp-python, and other compatible servers.
+    """
     
-    def __init__(self, host: str='localhost', port: int=8080):
-        self.client = openai.Client(
-            api_key="empty",
-            base_url=f"http://{host}:{port}/v1")
-        # List models API
-        models = self.client.models.list()
-        assert len(models.data) == 1
-        # print("Models:", models)
-        self.model = models.data[0].id
-        print("Use Model:", self.model)
+    def __init__(self, 
+                 host: str = 'localhost', 
+                 port: int = 11434,  # Ollama default
+                 api_key: Optional[str] = None,
+                 model_name: Optional[str] = None,
+                 timeout: int = 30,
+                 base_path: str = '/v1'):
+        """
+        Initialize LLM client.
+        
+        Args:
+            host: Server hostname (default: 'localhost')
+            port: Server port (default: 11434 for Ollama)
+            api_key: API key for authentication (default: 'EMPTY' for local servers)
+            model_name: Specific model to use (default: auto-select first available)
+            timeout: Connection timeout in seconds
+            base_path: API base path (default: '/v1')
+        """
+        if api_key is None:
+            api_key = "EMPTY"  # Default for local servers
+        
+        self.host = host
+        self.port = port
+        self.base_url = f"http://{host}:{port}{base_path}"
+        
+        try:
+            self.client = openai.Client(
+                api_key=api_key,
+                base_url=self.base_url,
+                timeout=timeout)
+            
+            # List available models
+            models = self.client.models.list()
+            
+            if len(models.data) == 0:
+                raise ValueError(f"No models available on {self.base_url}. Please ensure the server is running and has models loaded.")
+            
+            # Select model
+            if model_name is not None:
+                # Use specified model
+                available_models = [m.id for m in models.data]
+                if model_name not in available_models:
+                    print(f"Warning: Requested model '{model_name}' not found. Available models: {available_models}")
+                    print(f"Using first available model instead.")
+                    self.model = models.data[0].id
+                else:
+                    self.model = model_name
+            else:
+                # Auto-select first model
+                self.model = models.data[0].id
+                if len(models.data) > 1:
+                    print(f"Info: Multiple models available. Auto-selected: {self.model}")
+                    print(f"      Available models: {[m.id for m in models.data]}")
+            
+            print(f"✓ Connected to {self.base_url}")
+            print(f"✓ Using model: {self.model}")
+            
+        except Exception as e:
+            error_msg = f"""
+Failed to connect to LLM server at {self.base_url}
+
+Common solutions:
+  • Ollama (port 11434): Run 'ollama serve' then 'ollama pull <model>'
+  • LM Studio (port 1234): Start local server from LM Studio UI
+  • llama-cpp (port 8080): Run 'python -m llama_cpp.server --model <path>'
+
+Error details: {str(e)}
+"""
+            raise ConnectionError(error_msg) from e
+    
+    @classmethod
+    def from_ollama(cls, host: str = 'localhost', port: int = 11434, model_name: Optional[str] = None):
+        """
+        Create client configured for Ollama.
+        
+        Args:
+            host: Ollama server hostname
+            port: Ollama server port (default: 11434)
+            model_name: Specific model to use
+        
+        Example:
+            client = LLMClient.from_ollama(model_name='llama2')
+        """
+        print("Configured for Ollama")
+        return cls(host=host, port=port, model_name=model_name, base_path='/v1')
+    
+    @classmethod
+    def from_lm_studio(cls, host: str = 'localhost', port: int = 1234, model_name: Optional[str] = None):
+        """
+        Create client configured for LM Studio.
+        
+        Args:
+            host: LM Studio server hostname
+            port: LM Studio server port (default: 1234)
+            model_name: Specific model to use
+        
+        Example:
+            client = LLMClient.from_lm_studio()
+        """
+        print("Configured for LM Studio")
+        return cls(host=host, port=port, model_name=model_name, base_path='/v1')
+    
+    @classmethod
+    def from_llama_cpp(cls, host: str = 'localhost', port: int = 8080, model_name: Optional[str] = None):
+        """
+        Create client configured for llama-cpp-python server.
+        
+        Args:
+            host: llama-cpp server hostname
+            port: llama-cpp server port (default: 8080)
+            model_name: Specific model to use
+        
+        Example:
+            client = LLMClient.from_llama_cpp()
+        """
+        print("Configured for llama-cpp-python")
+        return cls(host=host, port=port, model_name=model_name, base_path='/v1')
     
     def chat(self, **kwargs):
         res = self.client.chat.completions.create(
@@ -364,6 +475,7 @@ class LLMClient:
         res = self.client.completions.create(
             model=self.model, **kwargs)
         return [choice.text for choice in res.choices], dict(res.usage)
+
 
 
 class SingleDBColumnRetriever:
@@ -731,11 +843,14 @@ def convert_retrieved_columns_to_table_schemas(retriever: Retriever, r: dict, re
 
 # a += b
 def add_usage_inplace(a: dict, b: Optional[dict]):
-    assert a is not None
-    if b is None:
+    """Add usage statistics from dict b into dict a, handling None values."""
+    if a is None or b is None:
         return
     for k in a:
-        a[k] += b[k]
+        # Handle cases where either value might be None
+        a_val = a.get(k, 0) if a.get(k) is not None else 0
+        b_val = b.get(k, 0) if b.get(k) is not None else 0
+        a[k] = a_val + b_val
 
 
 def process_record_full_db(client: LLMClient, retriever: Retriever, r: dict, mode: str):
@@ -957,7 +1072,14 @@ def process_record(client: LLMClient, retriever: Retriever, r: dict):
 
 
 if __name__ == '__main__':
-    client = LLMClient(host='127.0.0.1', port=8080)
+    # Configure LLM client via environment variables
+    # Default to Ollama settings (localhost:11434)
+    llm_host = os.getenv('LLM_HOST', 'localhost')
+    llm_port = int(os.getenv('LLM_PORT', '11434'))
+    llm_model = os.getenv('LLM_MODEL', None)  # Auto-select if not specified
+    
+    print(f"Initializing LLM client: {llm_host}:{llm_port}")
+    client = LLMClient(host=llm_host, port=llm_port, model_name=llm_model)
     retriever = Retriever()
 
     if GEN_MODE == SQL_MODE:
