@@ -5,12 +5,14 @@ Run Gen-SQL on 50 Spider samples for evaluation
 
 import os
 import sys
-os.environ['LLM_HOST'] = 'localhost'
-os.environ['LLM_PORT'] = '11434'
-os.environ['LLM_MODEL'] = 'llama3.1:8b'
+# os.environ['LLM_HOST'] = 'localhost'
+# os.environ['LLM_PORT'] = '11434'
+# os.environ['LLM_MODEL'] = 'llama3.1:8b'
 
 import json
-from main import LLMClient, Retriever, process_record_retrieve_tables_based_on_question, FEW_SHOT_COMPLETION
+from main import LLMClient, Retriever, process_record_retrieve_tables_based_on_question, FEW_SHOT_COMPLETION, ZERO_SHOT_CHAT
+import main
+main.ENABLE_SQL_POST_PROCESS = False
 from tqdm import tqdm
 import time
 
@@ -24,7 +26,10 @@ def run_50_samples():
     
     # Initialize
     print("\n1. Connecting to Ollama...")
-    client = LLMClient(host='localhost', port=11434, model_name='llama3.1:8b')
+    llm_host = os.getenv('LLM_HOST', 'localhost')
+    llm_port = int(os.getenv('LLM_PORT', '11434'))
+    llm_model = os.getenv('LLM_MODEL', 'llama3.1:8b')
+    client = LLMClient(host=llm_host, port=llm_port, model_name=llm_model)
     
     print("\n2. Loading retriever...")
     retriever = Retriever(
@@ -52,7 +57,7 @@ def run_50_samples():
     for record in tqdm(test_data, desc="Generating SQL"):
         try:
             result = process_record_retrieve_tables_based_on_question(
-                client, retriever, record, FEW_SHOT_COMPLETION
+                client, retriever, record, ZERO_SHOT_CHAT
             )
             if result:
                 results.append(result)

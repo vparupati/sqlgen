@@ -167,3 +167,4 @@ pretrained/
 benchmark/spider/
 sentence_transformers_local/
 
+.DS_Store
